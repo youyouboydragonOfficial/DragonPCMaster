@@ -27,8 +27,8 @@
         <div class="badge sound-badge" id="soundToggleBtn" onclick="toggleAudioAlert()">
           <span id="soundIcon">🔊</span> 警告音: <span id="soundStatusText">ON</span>
         </div>
-        <div class="badge uptime-badge">
-          稼働時間: <span id="headerUptime">--:--:--</span>
+        <div class="badge uptime-badge" title="アプリを起動してからのセッション実稼働時間">
+          ⏱️ セッション稼働: <span id="headerUptime">00:00:00</span>
         </div>
       </div>
     </header>
@@ -318,8 +318,12 @@
             <div class="spec-table">
               <div class="spec-row"><span class="k">OS エディション</span><span class="v" id="specOsCaption">--</span></div>
               <div class="spec-row"><span class="k">OS ビルド番号</span><span class="v" id="specOsBuild">--</span></div>
-              <div class="spec-row"><span class="k">システム稼働時間</span><span class="v" id="specUptime">--</span></div>
-              <div class="spec-row"><span class="k">バッテリー残量</span><span class="v" id="specBattery">--</span></div>
+              <div class="spec-row"><span class="k">今回のセッション実稼働時間</span><span class="v highlight" id="specSessionUptime">0秒</span></div>
+              <div class="spec-row"><span class="k">Windows カーネル通算時間</span><span class="v" id="specKernelUptime">-- 時間</span></div>
+              <div class="spec-row"><span class="k">バッテリー給電状態</span><span class="v" id="specBattery">--</span></div>
+              <div style="font-size: 0.72rem; color: #8a99ad; margin-top: 6px; padding: 6px 10px; background: rgba(255,255,255,0.02); border-radius: 4px; line-height: 1.4;">
+                💡 <strong>解説</strong>: Windows 11の「高速スタートアップ」仕様により、シャットダウン時もカーネルは再起動されるまで連続保持されます。上の「セッション実稼働時間」が今回の実際の利用時間です。
+              </div>
             </div>
           </div>
 
