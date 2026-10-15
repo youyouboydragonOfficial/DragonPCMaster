@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dragon PC Master Monitor</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" type="image/x-icon" href="/static/icon.ico">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-area">
+        <img src="/static/icon.png" alt="Dragon Logo" class="app-logo">
+        <div class="logo-text">
+          <h1>DRAGON PC MASTER</h1>
+          <span class="sub-tag">ULTIMATE HARDWARE & THERMAL TELEMETRY</span>
+        </div>
+      </div>
+
+      <!-- Quick Status Badges -->
+      <div class="header-badges">
+        <div class="badge secure-badge" title="データのエクスプローラー保存は厳重に禁止されています。全データはRAMメモリ上で完結します。">
+          <span class="badge-icon">🔒</span> エクスプローラー保存禁止 (RAM完全保持)
+        </div>
+        <div class="badge sound-badge" id="soundToggleBtn" onclick="toggleAudioAlert()">
+          <span id="soundIcon">🔊</span> 警告音: <span id="soundStatusText">ON</span>
+        </div>
+        <div class="badge uptime-badge">
+          稼働時間: <span id="headerUptime">--:--:--</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Critical High-Temp Alert Banner (Appears on overheat) -->
+    <div id="thermalAlertBanner" class="alert-banner hidden">
+      <div class="alert-content">
+        <span class="alert-icon">⚠️</span>
+        <div class="alert-text">
+          <strong id="alertTitle">高温警告発令</strong>:
+          <span id="alertMessage">CPU温度が警戒しきい値を超過しました！</span>
+        </div>
+      </div>
+      <div class="alert-temp-badge" id="alertTempDisplay">--℃</div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="tab-btn active" onclick="switchTab('dashboard')">📊 総合ダッシュボード</button>
+      <button class="tab-btn" onclick="switchTab('game-recorder')">🎮 ゲーム中負荷記録</button>
+      <button class="tab-btn" onclick="switchTab('cpu-gpu')">⚡ CPU & GPU 詳細</button>
+      <button class="tab-btn" onclick="switchTab('system-specs')">🖥️ パソコン詳細・全スペック</button>
+      <button class="tab-btn" onclick="switchTab('processes')">⚙️ プロセス監視</button>
+    </nav>
+
+    <!-- Main Content Body -->
+    <main class="tab-content-container">
+
+      <!-- TAB 1: 総合ダッシュボード -->
+      <section id="tab-dashboard" class="tab-pane active">
+        <!-- Top Metric Cards -->
+        <div class="metric-cards-grid">
+          <!-- CPU Card -->
+          <div class="card metric-card" id="cardCpu">
+            <div class="card-header">
+              <span class="card-title">CPU 使用率</span>
+              <span class="card-badge" id="cpuFreqBadge">-- MHz</span>
+            </div>
+            <div class="gauge-container">
+              <div class="gauge-value" id="cpuPercentVal">0%</div>
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="cpuBar"></div>
+              </div>
+            </div>
+            <div class="card-footer-info">
+              <span id="cpuModelShort">Detecting CPU...</span>
+            </div>
+          </div>
+
+          <!-- Thermal Card (Hero Feature) -->
+          <div class="card metric-card thermal-card" id="cardTemp">
+            <div class="card-header">
+              <span class="card-title">CPU / システム温度</span>
+              <span class="temp-status-tag" id="tempStatusTag">NORMAL</span>
+            </div>
+            <div class="temp-hero-display">
+              <div class="temp-digital" id="tempVal">--<span class="unit">℃</span></div>
+              <div class="temp-gauge-ring">
+                <svg viewBox="0 0 100 100" class="ring-svg">
+                  <circle cx="50" cy="50" r="42" class="ring-bg"></circle>
+                  <circle cx="50" cy="50" r="42" class="ring-bar" id="tempRingBar"></circle>
+                </svg>
+              </div>
+            </div>
+            <div class="card-footer-info">
+              <span>警戒しきい値: 注意 75℃ / 警告 82℃ / 危険 88℃</span>
+            </div>
+          </div>
+
+          <!-- GPU Card -->
+          <div class="card metric-card" id="cardGpu">
+            <div class="card-header">
+              <span class="card-title">GPU 3D負荷率</span>
+              <span class="card-badge" id="gpuTempBadge">-- ℃</span>
+            </div>
+            <div class="gauge-container">
+              <div class="gauge-value" id="gpuPercentVal">0%</div>
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill gpu-fill" id="gpuBar"></div>
+              </div>
+            </div>
+            <div class="card-footer-info">
+              <span id="gpuModelShort">Detecting GPU...</span>
+            </div>
+          </div>
+
+          <!-- Memory Card -->
+          <div class="card metric-card" id="cardMemory">
+            <div class="card-header">
+              <span class="card-title">メモリ (RAM)</span>
+              <span class="card-badge" id="memGbBadge">-- / -- GB</span>
+            </div>
+            <div class="gauge-container">
+              <div class="gauge-value" id="memPercentVal">0%</div>
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill mem-fill" id="memBar"></div>
+              </div>
+            </div>
+            <div class="card-footer-info">
+              <span id="memAvailText">空き: -- GB</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Realtime Telemetry Charts -->
+        <div class="dashboard-charts-grid">
+          <div class="card chart-card">
+            <div class="card-header">
+              <span class="card-title">📈 CPU負荷 & 温度 リアルタイム推移</span>
+              <div class="chart-legend">
+                <span class="dot cpu-dot"></span> CPU使用率
+                <span class="dot temp-dot"></span> 温度(℃)
+              </div>
+            </div>
+            <div class="canvas-wrapper">
+              <canvas id="realtimeCpuTempCanvas"></canvas>
+            </div>
+          </div>
+
+          <div class="card chart-card">
+            <div class="card-header">
+              <span class="card-title">🎮 GPU負荷 & メモリ リアルタイム推移</span>
+              <div class="chart-legend">
+                <span class="dot gpu-dot"></span> GPU 3D使用率
+                <span class="dot mem-dot"></span> メモリ使用率
+              </div>
+            </div>
+            <div class="canvas-wrapper">
+              <canvas id="realtimeGpuMemCanvas"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Storage & Network Ribbon -->
+        <div class="dashboard-ribbon-grid">
+          <div class="card ribbon-card">
+            <h4>💾 ストレージ空き状況</h4>
+            <div id="dashboardDisksList" class="disks-quick-list"></div>
+          </div>
+          <div class="card ribbon-card">
+            <h4>🌐 ネットワーク・ディスク I/O</h4>
+            <div class="io-stats-grid">
+              <div class="io-stat"><span class="io-label">Net ↓</span> <span class="io-val" id="netDownVal">0 KB/s</span></div>
+              <div class="io-stat"><span class="io-label">Net ↑</span> <span class="io-val" id="netUpVal">0 KB/s</span></div>
+              <div class="io-stat"><span class="io-label">Disk Read</span> <span class="io-val" id="diskReadVal">0 KB/s</span></div>
+              <div class="io-stat"><span class="io-label">Disk Write</span> <span class="io-val" id="diskWriteVal">0 KB/s</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: ゲーム中負荷記録 (Game Benchmark Flight Recorder) -->
+      <section id="tab-game-recorder" class="tab-pane">
+        <div class="recorder-control-card card">
+          <div class="recorder-header">
+            <div>
+              <h2>🎮 ゲーム中負荷記録（フライトレコーダー）</h2>
+              <p class="section-desc">ゲームプレイ中や高負荷ベンチマーク中の負荷・温度推移を1秒刻みで精密サンプリング。ボトルネックや熱暴走を自動解析します。</p>
+            </div>
+            <div class="recorder-actions">
+              <button id="btnStartRecord" class="btn btn-record-start" onclick="startGameRecording()">
+                ▶ 記録開始 (START RECORD)
+              </button>
+              <button id="btnStopRecord" class="btn btn-record-stop hidden" onclick="stopGameRecording()">
+                ⏹ 記録停止＆解析 (STOP & ANALYZE)
+              </button>
+            </div>
+          </div>
+
+          <div id="recordingLiveStatus" class="recording-live-indicator hidden">
+            <span class="recording-pulse"></span>
+            <strong>負荷記録中...</strong> 経過時間: <span id="recordDuration">0.0</span>秒 | サンプル数: <span id="recordSampleCount">0</span>
+            <span class="tag-ram-only">※データはRAM内のみ記録 (ファイル出力禁止)</span>
+          </div>
+        </div>
+
+        <!-- Session Analysis Report Card (Populated after Stop) -->
+        <div id="sessionResultContainer" class="session-results hidden">
+          <div class="card session-summary-card">
+            <h3>🏁 ゲーム負荷セッション解析レポート</h3>
+            <div class="summary-metrics-grid">
+              <div class="summary-box">
+                <span class="sm-label">計測時間</span>
+                <span class="sm-val" id="resDuration">0 秒</span>
+              </div>
+              <div class="summary-box">
+                <span class="sm-label">CPU 平均 / ピーク</span>
+                <span class="sm-val" id="resCpu">0% / 0%</span>
+              </div>
+              <div class="summary-box">
+                <span class="sm-label">GPU 平均 / ピーク</span>
+                <span class="sm-val" id="resGpu">0% / 0%</span>
+              </div>
+              <div class="summary-box">
+                <span class="sm-label">最高到達温度</span>
+                <span class="sm-val" id="resMaxTemp">0 ℃</span>
+              </div>
+              <div class="summary-box">
+                <span class="sm-label">ピークメモリ使用</span>
+                <span class="sm-val" id="resPeakMem">0 %</span>
+              </div>
+            </div>
+
+            <!-- Bottleneck Banner -->
+            <div class="bottleneck-eval-card">
+              <h4>🔍 システムボトルネック・安定性判定</h4>
+              <div class="bottleneck-badge" id="resBottleneck">解析中...</div>
+            </div>
+
+            <!-- Session Timeline Chart -->
+            <div class="session-chart-wrap">
+              <h4>📊 セッション負荷・温度タイムライン推移</h4>
+              <div class="canvas-wrapper">
+                <canvas id="sessionTimelineCanvas"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty state info if not recorded yet -->
+        <div id="recorderEmptyState" class="card empty-state-card">
+          <div class="empty-icon">🕹️</div>
+          <h3>ゲームを始める前に「記録開始」を押してください</h3>
+          <p>ゲームプレイ後に「記録停止＆解析」を押すと、CPU/GPUのボトルネック診断、平均・最高負荷、温度変化が一目でわかる詳細レポートが生成されます。</p>
+          <div class="privacy-note">
+            <span>🛡️ 安全仕様: 本アプリはエクスプローラー等へのログファイル保存を完全に排除しています。全セッションデータは安全にインメモリでのみ解析・可視化されます。</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: CPU & GPU 詳細 -->
+      <section id="tab-cpu-gpu" class="tab-pane">
+        <div class="two-col-grid">
+          <!-- CPU Deep-Dive -->
+          <div class="card detail-card">
+            <div class="detail-header">
+              <h3>⚡ プロセッサ (CPU) 詳細</h3>
+              <span class="detail-tag" id="cpuThreadsTag">-- コア / -- スレッド</span>
+            </div>
+            <div class="spec-table">
+              <div class="spec-row"><span class="k">モデル名</span><span class="v" id="detailCpuName">--</span></div>
+              <div class="spec-row"><span class="k">ベース周波数</span><span class="v" id="detailCpuBase">-- MHz</span></div>
+              <div class="spec-row"><span class="k">現在周波数</span><span class="v" id="detailCpuFreq">-- MHz</span></div>
+              <div class="spec-row"><span class="k">物理コア数</span><span class="v" id="detailCpuCores">--</span></div>
+              <div class="spec-row"><span class="k">論理スレッド</span><span class="v" id="detailCpuThreads">--</span></div>
+              <div class="spec-row"><span class="k">アーキテクチャ</span><span class="v" id="detailCpuArch">--</span></div>
+              <div class="spec-row"><span class="k">現在温度</span><span class="v highlight" id="detailCpuTemp">-- ℃</span></div>
+            </div>
+
+            <h4 class="sub-heading">各コア個別使用率</h4>
+            <div id="coresBarContainer" class="cores-grid"></div>
+          </div>
+
+          <!-- GPU Deep-Dive -->
+          <div class="card detail-card">
+            <div class="detail-header">
+              <h3>🎮 グラフィックス (GPU) 詳細</h3>
+              <span class="detail-tag" id="gpuVramTag">VRAM -- MB</span>
+            </div>
+            <div class="spec-table">
+              <div class="spec-row"><span class="k">グラフィックボード</span><span class="v" id="detailGpuName">--</span></div>
+              <div class="spec-row"><span class="k">ドライバーバージョン</span><span class="v" id="detailGpuDriver">--</span></div>
+              <div class="spec-row"><span class="k">ビデオメモリ (VRAM)</span><span class="v" id="detailGpuVram">-- MB</span></div>
+              <div class="spec-row"><span class="k">現在の3D負荷率</span><span class="v highlight" id="detailGpuUtil">-- %</span></div>
+              <div class="spec-row"><span class="k">GPUコア推定温度</span><span class="v highlight" id="detailGpuTemp">-- ℃</span></div>
+            </div>
+
+            <div class="gpu-status-visual">
+              <div class="gpu-load-circle">
+                <span class="circle-val" id="gpuCircleVal">0%</span>
+                <span class="circle-sub">3D LOAD</span>
+              </div>
+              <div class="gpu-summary-text">
+                DirectX / Direct3D パイプライン監視中。リアルタイムにゲーム描画エンジン負荷をトラッキングしています。
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: パソコン詳細・全スペック -->
+      <section id="tab-system-specs" class="tab-pane">
+        <div class="specs-full-grid">
+          <!-- OS & PC Spec -->
+          <div class="card spec-card">
+            <h3>🖥️ OS & システム仕様</h3>
+            <div class="spec-table">
+              <div class="spec-row"><span class="k">OS エディション</span><span class="v" id="specOsCaption">--</span></div>
+              <div class="spec-row"><span class="k">OS ビルド番号</span><span class="v" id="specOsBuild">--</span></div>
+              <div class="spec-row"><span class="k">システム稼働時間</span><span class="v" id="specUptime">--</span></div>
+              <div class="spec-row"><span class="k">バッテリー残量</span><span class="v" id="specBattery">--</span></div>
+            </div>
+          </div>
+
+          <!-- Motherboard & BIOS -->
+          <div class="card spec-card">
+            <h3>🔩 マザーボード & BIOS</h3>
+            <div class="spec-table">
+              <div class="spec-row"><span class="k">マザーボード製造元</span><span class="v" id="specBoardVendor">--</span></div>
+              <div class="spec-row"><span class="k">マザーボード型番</span><span class="v" id="specBoardModel">--</span></div>
+              <div class="spec-row"><span class="k">BIOS バージョン</span><span class="v" id="specBiosVersion">--</span></div>
+            </div>
+          </div>
+
+          <!-- Storage Details -->
+          <div class="card spec-card full-width">
+            <h3>💾 ストレージドライブ詳細一覧</h3>
+            <div id="fullDisksContainer" class="full-disks-grid"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: プロセス監視 -->
+      <section id="tab-processes" class="tab-pane">
+        <div class="card process-card">
+          <div class="card-header">
+            <h3>⚙️ 高負荷プロセストップランキング</h3>
+            <span class="card-badge">リアルタイム CPU & RAM 消費</span>
+          </div>
+          <table class="process-table">
+            <thead>
+              <tr>
+                <th>PID</th>
+                <th>プロセス名</th>
+                <th>CPU 使用率</th>
+                <th>メモリ使用率</th>
+                <th>負荷バー</th>
+              </tr>
+            </thead>
+            <tbody id="processTableBody">
+              <tr><td colspan="5" style="text-align:center;">スキャン中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- App Bottom Footer (Exact User Requirement) -->
+    <footer class="app-footer">
+      <div class="footer-inner">
+        <span class="copyright-text">© by youyouboydragon</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
