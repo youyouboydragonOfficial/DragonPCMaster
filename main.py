@@ -6,8 +6,41 @@ import webview
 from flask import Flask, jsonify, send_from_directory, render_template_string
 from hardware_engine import HardwareEngine
 
-app = Flask(__name__, static_folder="static")
+def get_base_path():
+    if hasattr(sys, '_MEIPASS'):
+        return sys._MEIPASS
+    return os.path.dirname(os.path.abspath(__file__))
+
+BASE_PATH = get_base_path()
+STATIC_DIR = os.path.join(BASE_PATH, "static")
+
+app = Flask(__name__, static_folder=STATIC_DIR)
 engine = HardwareEngine()
+
+def ensure_desktop_shortcut():
+    """Ensure desktop shortcut exists if run directly as EXE."""
+    try:
+        import subprocess
+        exe_path = sys.executable
+        if not exe_path.lower().endswith("dragonpcmaster.exe"):
+            return
+        icon_path = os.path.join(STATIC_DIR, "icon.ico")
+        ps = f'''
+        $WshShell = New-Object -ComObject WScript.Shell
+        $desktopDir = [Environment]::GetFolderPath([Environment+SpecialFolder]::Desktop)
+        $shortcutPath = "$desktopDir\\Dragon PC Master Monitor.lnk"
+        if (!(Test-Path $shortcutPath)) {{
+            $s = $WshShell.CreateShortcut($shortcutPath)
+            $s.TargetPath = "{exe_path}"
+            $s.WorkingDirectory = [System.IO.Path]::GetDirectoryName("{exe_path}")
+            $s.Description = "最強パソコン状態・温度・ゲーム負荷監視モニター"
+            if (Test-Path "{icon_path}") {{ $s.IconLocation = "{icon_path}" }}
+            $s.Save()
+        }}
+        '''
+        subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps], capture_output=True, timeout=3)
+    except Exception:
+        pass
 
 def find_free_port(preferred=47820):
     for port in [preferred, preferred + 1, preferred + 2, 0]:
@@ -23,11 +56,11 @@ def find_free_port(preferred=47820):
 
 @app.route("/")
 def index():
-    return send_from_directory("static", "index.html")
+    return send_from_directory(STATIC_DIR, "index.html")
 
 @app.route("/static/<path:filename>")
 def serve_static(filename):
-    return send_from_directory("static", filename)
+    return send_from_directory(STATIC_DIR, filename)
 
 @app.route("/api/specs")
 def get_specs():
@@ -69,11 +102,13 @@ def run_flask(port):
     app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)
 
 def main():
+    ensure_desktop_shortcut()
+
     port = find_free_port()
     flask_thread = threading.Thread(target=run_flask, args=(port,), daemon=True)
     flask_thread.start()
 
-    icon_path = os.path.abspath(os.path.join("static", "icon.ico"))
+    icon_path = os.path.abspath(os.path.join(STATIC_DIR, "icon.ico"))
     if not os.path.exists(icon_path):
         icon_path = None
 
