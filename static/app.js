@@ -138,14 +138,16 @@ async function pollMetrics() {
 }
 
 function updateDashboard(m) {
-  // Uptime
-  const s = m.uptime_seconds || 0;
+  // Session Uptime
+  const s = m.session_uptime_seconds || 0;
   const h = Math.floor(s / 3600);
   const min = Math.floor((s % 3600) / 60);
   const sec = s % 60;
-  const uptimeStr = `${h}時間 ${min}分 ${sec}秒`;
+  let uptimeStr = "";
+  if (h > 0) uptimeStr += `${h}時間 `;
+  uptimeStr += `${min}分 ${sec}秒`;
+
   document.getElementById('headerUptime').innerText = uptimeStr;
-  document.getElementById('specUptime').innerText = uptimeStr;
 
   // CPU
   document.getElementById('cpuPercentVal').innerText = m.cpu_percent + '%';
@@ -271,6 +273,21 @@ function updateCpuGpuTab(m) {
 }
 
 function updateSpecsTab(m) {
+  // Session Uptime & Kernel Uptime
+  const s = m.session_uptime_seconds || 0;
+  const h = Math.floor(s / 3600);
+  const min = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  let sessionStr = "";
+  if (h > 0) sessionStr += `${h}時間 `;
+  sessionStr += `${min}分 ${sec}秒`;
+
+  const specSession = document.getElementById('specSessionUptime');
+  if (specSession) specSession.innerText = sessionStr;
+
+  const specKernel = document.getElementById('specKernelUptime');
+  if (specKernel) specKernel.innerText = `${m.kernel_uptime_hours || 0} 時間 (連続保持)`;
+
   // Battery
   const batEl = document.getElementById('specBattery');
   if (m.battery) {
