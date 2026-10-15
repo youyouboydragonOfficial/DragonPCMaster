@@ -37,25 +37,35 @@ def install():
             shutil.rmtree(static_dst)
         shutil.copytree(static_src, static_dst)
 
-    # 3. Create runner launcher (run_app.vbs / run_app.bat)
-    # pythonw.exe executes silently without black terminal window!
-    python_exe = sys.executable
-    pythonw_exe = python_exe.replace("python.exe", "pythonw.exe")
-    if not os.path.exists(pythonw_exe):
-        pythonw_exe = python_exe
-
-    # Create vbs runner to hide any console
-    vbs_path = install_dir / "launch.vbs"
-    main_py_path = install_dir / "main.py"
-    with open(vbs_path, "w", encoding="utf-8") as f:
-        f.write(f'''Set WshShell = CreateObject("WScript.Shell")\n''')
-        f.write(f'''WshShell.CurrentDirectory = "{install_dir}"\n''')
-        f.write(f'''WshShell.Run """{pythonw_exe}""" & " """{main_py_path}""", 0, False\n''')
+    # Copy DragonPCMaster.exe if built
+    exe_src = current_dir / "dist" / "DragonPCMaster.exe"
+    exe_dst = install_dir / "DragonPCMaster.exe"
+    target_exe = None
+    if exe_src.exists():
+        shutil.copy2(exe_src, exe_dst)
+        target_exe = str(exe_dst)
 
     icon_path = install_dir / "static" / "icon.ico"
 
-    # 4. Create Desktop & Start Menu Shortcuts using PowerShell SpecialFolder
+    # 4. Create Desktop & Start Menu Shortcuts
     print("[3/4] デスクトップ＆スタートメニューにショートカット作成中...")
+
+    if target_exe:
+        target_path_str = target_exe
+        args_str = ""
+    else:
+        python_exe = sys.executable
+        pythonw_exe = python_exe.replace("python.exe", "pythonw.exe")
+        if not os.path.exists(pythonw_exe):
+            pythonw_exe = python_exe
+        vbs_path = install_dir / "launch.vbs"
+        main_py_path = install_dir / "main.py"
+        with open(vbs_path, "w", encoding="utf-8") as f:
+            f.write(f'''Set WshShell = CreateObject("WScript.Shell")\n''')
+            f.write(f'''WshShell.CurrentDirectory = "{install_dir}"\n''')
+            f.write(f'''WshShell.Run """{pythonw_exe}""" & " """{main_py_path}""", 0, False\n''')
+        target_path_str = "wscript.exe"
+        args_str = f'"{vbs_path}"'
 
     ps_shortcut_script = f"""
     $WshShell = New-Object -ComObject WScript.Shell
@@ -65,10 +75,10 @@ def install():
     # Desktop Shortcut
     if (Test-Path $desktopDir) {{
         $desktopShortcut = $WshShell.CreateShortcut("$desktopDir\\{APP_NAME}.lnk")
-        $desktopShortcut.TargetPath = "wscript.exe"
-        $desktopShortcut.Arguments = '"{vbs_path}"'
+        $desktopShortcut.TargetPath = "{target_path_str}"
+        if ("{args_str}") {{ $desktopShortcut.Arguments = '{args_str}' }}
         $desktopShortcut.WorkingDirectory = "{install_dir}"
-        $desktopShortcut.IconLocation = "{icon_path}"
+        if (Test-Path "{icon_path}") {{ $desktopShortcut.IconLocation = "{icon_path}" }}
         $desktopShortcut.Description = "最強パソコン状態・温度・ゲーム負荷監視モニター"
         $desktopShortcut.Save()
     }}
@@ -76,10 +86,10 @@ def install():
     # Start Menu Shortcut
     if (Test-Path $programsDir) {{
         $smShortcut = $WshShell.CreateShortcut("$programsDir\\{APP_NAME}.lnk")
-        $smShortcut.TargetPath = "wscript.exe"
-        $smShortcut.Arguments = '"{vbs_path}"'
+        $smShortcut.TargetPath = "{target_path_str}"
+        if ("{args_str}") {{ $smShortcut.Arguments = '{args_str}' }}
         $smShortcut.WorkingDirectory = "{install_dir}"
-        $smShortcut.IconLocation = "{icon_path}"
+        if (Test-Path "{icon_path}") {{ $smShortcut.IconLocation = "{icon_path}" }}
         $smShortcut.Description = "最強パソコン状態・温度・ゲーム負荷監視モニター"
         $smShortcut.Save()
     }}
